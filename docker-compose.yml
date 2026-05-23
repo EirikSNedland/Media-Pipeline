@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  pipeline-dashboard:
+    build: ./dashboard
+    container_name: media-pipeline-ui
+    ports:
+      - "8501:8501"
+    volumes:
+      # Maps all sub-script engines into the central controller
+      - ./data:/app/data
+      - ./file_extractor:/app/file_extractor
+      - ./sub_ripper:/app/sub_ripper
+      - ./sup_srt_converter:/app/sup_srt_converter
+      - ./media_renamer:/app/media_renamer
+    restart: always

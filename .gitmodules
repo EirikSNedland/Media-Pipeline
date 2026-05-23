@@ -1,0 +1,12 @@
+[submodule "media_renamer"]
+	path = media_renamer
+	url = git@github.com:EirikSNedland/media_renamer.git
+[submodule "sup_srt_converter"]
+	path = sup_srt_converter
+	url = git@github.com:EirikSNedland/sup_srt_converter.git
+[submodule "sub_ripper"]
+	path = sub_ripper
+	url = git@github.com:EirikSNedland/sub_ripper.git
+[submodule "file_extractor"]
+	path = file_extractor
+	url = git@github.com:EirikSNedland/file_extractor.git
