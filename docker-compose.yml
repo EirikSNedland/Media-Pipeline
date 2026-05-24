@@ -13,4 +13,7 @@ services:
       - ./sub_ripper:/app/sub_ripper
       - ./sup_srt_converter:/app/sup_srt_converter
       - ./media_renamer:/app/media_renamer
+      - "<local_download_folder>:/downloads" #SWAO LEFT SIDE FOR LOCAL DOWNLOAD FOLDER
+    environment:
+      - PC_DOWNLOADS_DIR=/downloads
     restart: always

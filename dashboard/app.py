@@ -8,11 +8,14 @@ st.title("🎛️ Media Pipeline Control & Storage Center")
 
 # Path variables matching our Docker volumes setup
 BASE_DATA_DIR = "/app/data"
+PC_DOWNLOADS_PATH = os.getenv("PC_DOWNLOADS_DIR", "/downloads")
+
 FOLDERS = {
     "1_zip_input": os.path.join(BASE_DATA_DIR, "1_zip_input"),
     "2_ripper_input": os.path.join(BASE_DATA_DIR, "2_ripper_input"),
     "3_converter_input": os.path.join(BASE_DATA_DIR, "3_converter_input"),
-    "4_final_output": os.path.join(BASE_DATA_DIR, "4_final_output")
+    "4_final_output": os.path.join(BASE_DATA_DIR, "4_final_output"),
+    "pc_downloads": PC_DOWNLOADS_PATH
 }
 
 # Ensure all workspace folders physically exist
@@ -69,7 +72,94 @@ def manual_bulk_route(source_folder_name, target_folder_name):
     return moved_count
 
 # ----------------------------------------------------
-# UI SECTION 1: File Location Explorer & Smart Routing
+# UI SECTION 1: Global File Operations (Upload & Bulk Delete)
+# ----------------------------------------------------
+st.header("🛠️ Storage Management")
+
+with st.expander("🛠️ Storage Management (Upload & Cleanup)", expanded=False):
+    upload_col, delete_col = st.columns(2)
+
+    with upload_col:
+            st.markdown("### 📥 Local PC Import")
+            path_to_watch = FOLDERS["pc_downloads"]
+            
+            # 1. ALWAYS initialize the list first
+            all_found_files = []
+            
+            # 2. Check if the path exists
+            if os.path.exists(path_to_watch):
+                # Scan recursively
+                for root, dirs, files in os.walk(path_to_watch):
+                    for file in files:
+                        if not file.startswith('.'):
+                            full_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(full_path, path_to_watch)
+                            all_found_files.append(relative_path)
+                
+                # 3. Only show UI if files were found
+                if all_found_files:
+                    selected_files = st.multiselect("Select files to import:", all_found_files)
+                    
+                    # Filter out the download folder from the target options
+                    pipeline_folders = {k: v for k, v in FOLDERS.items() if k != "pc_downloads"}
+                    target_folder = st.selectbox(
+                        "Import into:", 
+                        list(pipeline_folders.keys()),
+                        format_func=lambda x: x.replace('_', ' ').title()
+                    )
+                    
+                    if st.button("🚀 Fast Import (Move)", type="primary", use_container_width=True):
+                        for rel_p in selected_files:
+                            src = os.path.join(path_to_watch, rel_p)
+                            filename = os.path.basename(rel_p) 
+                            dest = os.path.join(FOLDERS[target_folder], filename)
+                            
+                            if os.path.exists(src):
+                                shutil.move(src, dest)
+                        st.success(f"Moved {len(selected_files)} items.")
+                        st.rerun()
+                else:
+                    st.info(f"No files found in {path_to_watch}")
+            else:
+                st.error(f"Directory {path_to_watch} not found. Check Docker volume mapping.")
+                
+    with delete_col:
+        st.markdown("### 🧹 Bulk Cleanup")
+        
+        target_del_folder = st.selectbox("Select folder to clean:", list(FOLDERS.keys()), key="bulk_del_selector")
+        
+        # 1. Get the list of files
+        all_del_files = os.listdir(FOLDERS[target_del_folder])
+        clean_del_files = [f for f in all_del_files if f not in [".gitkeep", ".DS_Store"]]
+        
+        # 2. Add "Select All" checkbox
+        select_all = st.checkbox(f"Select all {len(clean_del_files)} files", key=f"all_{target_del_folder}")
+        
+        # 3. Multiselect logic
+        if select_all:
+            selected_to_delete = st.multiselect("Files to remove:", clean_del_files, default=clean_del_files)
+        else:
+            selected_to_delete = st.multiselect("Files to remove:", clean_del_files)
+        
+        # 4. Action Button
+        if st.button("Delete Selected Items", type="secondary", use_container_width=True):
+            if selected_to_delete:
+                for file_to_del in selected_to_delete:
+                    # Extra fail-safe check
+                    if file_to_del != ".gitkeep":
+                        file_path = os.path.join(FOLDERS[target_del_folder], file_to_del)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                
+                st.success(f"Successfully deleted {len(selected_to_delete)} files.")
+                st.rerun()
+            else:
+                st.info("No files selected for deletion.")
+
+st.markdown("---")
+
+# ----------------------------------------------------
+# UI SECTION 2: File Location Explorer & Smart Routing
 # ----------------------------------------------------
 st.header("📂 Real-time File Location & Organizer")
 
@@ -85,10 +175,11 @@ with col_btn1:
             st.info("Everything is already in the correct service folder.")
 
 st.markdown("##")
+pipeline_folders = {k: v for k, v in FOLDERS.items() if k != "pc_downloads"}
 
 # Render 4 column layout tracking physical media locations
-cols = st.columns(4)
-for idx, (folder_name, folder_path) in enumerate(FOLDERS.items()):
+cols = st.columns(len(pipeline_folders))
+for idx, (folder_name, folder_path) in enumerate(pipeline_folders.items()):
     with cols[idx]:
         st.subheader(f"{folder_name.replace('_', ' ').title()}")
         
@@ -100,7 +191,12 @@ for idx, (folder_name, folder_path) in enumerate(FOLDERS.items()):
         if visible_files:
             st.caption(f"Count: {len(visible_files)} items")
             for f in visible_files:
-                st.text(f"📄 {f}")
+        # Create a small grid for the filename and a delete button
+                file_col, del_col = st.columns([0.85, 0.15])
+                file_col.text(f"📄 {f}")
+                if del_col.button("🗑️", key=f"quick_del_{folder_name}_{f}"):
+                    os.remove(os.path.join(folder_path, f))
+                    st.rerun()
         else:
             st.markdown("*Folder is empty*")
             
@@ -135,8 +231,9 @@ for idx, (folder_name, folder_path) in enumerate(FOLDERS.items()):
 
 st.markdown("---")
 
+
 # ----------------------------------------------------
-# UI SECTION 2: Dynamic Execution Switchboard
+# UI SECTION 3: Dynamic Execution Switchboard
 # ----------------------------------------------------
 st.header("⚙️ Pipeline Execution Control")
 
