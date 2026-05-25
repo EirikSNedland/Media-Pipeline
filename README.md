@@ -13,5 +13,5 @@ Small application that allows for manipulating files
 * Run ```docker compose up``` in terminal
 * Webpage accessible through ```localhost:8051```
 
-#### AI
+### AI
 Majority of the code is generated with Gemini AI
