@@ -1,4 +1,5 @@
 ﻿# Media-Pipeline
+A repo that combines multiple projects into one, and gives them a web interface
 
 ## Features
 Small application that allows for manipulating files
