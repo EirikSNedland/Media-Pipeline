@@ -12,3 +12,6 @@ Small application that allows for manipulating files
 * Change ```<local_download_folder>``` to local pc download folder or other folder serving similar purpose in docker-compose.yml
 * Run ```docker compose up``` in terminal
 * Webpage accessible through ```localhost:8051```
+
+#### AI
+Majority of the code is generated with Gemini AI
